@@ -1,0 +1,10 @@
+{
+  "name": "firebasecrdtlist",
+  "private": true,
+  "dependencies": {
+    "bootstrap": "~3.0.3",
+    "jquery": "~1.11.0",
+    "firebase": "~1.0.15"
+  },
+  "devDependencies": {}
+}
