@@ -3,20 +3,26 @@ console.log("loading CRDTList.js");
 
 var LOCK_KEY = "dS73j5z2zzwr6uFc";
 
+//TODO we should give the user a ref to each atom so they can attach listeners
 
 function CRDTList(firebaseRef) {
     this.listeners = {
-        'value':[]
+        'change':[]
     };
 
     if(firebaseRef){
         this.ref = firebaseRef;
         this.ref.on('child_added', this._disambiguator_added, function(){}, this);
+        this.ref.child(LOCK_KEY).on('value', this._lock_change, function(){}, this);
     }
     this.lock = false;
     this.root = new ListNode();
 }
 
+/**
+ * forwards the subsequent args to registered listens of the 'label'
+ * e.g. _fire('value', prev_val, new_val)
+ */
 CRDTList.prototype._fire = function(label) {
     //retrieve parameters defined after the label
     var args = Array.prototype.slice.call(arguments).shift();
@@ -25,6 +31,10 @@ CRDTList.prototype._fire = function(label) {
     }
 };
 
+/**
+ * label is on of:-
+ * change, if any element is added or removed from the list changes
+ */
 CRDTList.prototype.on = function(label, listener) {
     this.listeners[label].push(listener);
 };
@@ -88,10 +98,9 @@ CRDTList.prototype._between = function(a, b) {
 
 CRDTList.prototype._disambiguator_added = function(snapshot){
     if(snapshot.name() == LOCK_KEY){
-        console.log("_lock_added", snapshot.name());
-        snapshot.ref().on('value', this._lock_change, function(){}, this);
+        //ignore, lock listener attached in constructor
     }else{
-        console.log("_disambiguator_added", snapshot.name());
+        //console.log("_disambiguator_added", snapshot.name());
         snapshot.ref().on('child_added', this._treepath_added, function(){}, this);
         snapshot.ref().on('child_removed', this._treepath_removed, function(){}, this);
     }
@@ -99,18 +108,20 @@ CRDTList.prototype._disambiguator_added = function(snapshot){
 };
 
 CRDTList.prototype._treepath_added = function(snapshot){
-    console.log("_treepath_added", snapshot.name());
-
+    //console.log("_treepath_added", snapshot.name());
     this.root.insert(snapshot.name(), snapshot.ref().parent().name(), snapshot.val())
+    this._fire('change', this);
 };
 CRDTList.prototype._treepath_removed = function(snapshot){
-    console.log("_treepath_removed", snapshot.name());
+    //console.log("_treepath_removed", snapshot.name());
 
     this.root.remove(snapshot.name(), snapshot.ref().parent().name())
+    this._fire('change', this);
 };
 CRDTList.prototype._lock_change = function(snapshot){
-    console.log("_lock_change", snapshot.val());
-    this.lock = snapshot.val();
+    this.lock = snapshot.val() === null?false:snapshot.val();
+
+    console.log("_lock_change", this.lock);
 };
 
 CRDTList.prototype._set_lock = function(value, cb){
@@ -139,6 +150,26 @@ CRDTList.prototype.insertBetween = function(keyInfront, keyBehind, value, disamb
     }
     return this.insertByKey(key, value, disambiguator, cb)
 };
+/**
+ * returns an array of
+ * {
+        key:key,
+        value:value,
+        disambiguator:disambiguator
+   }
+ */
+CRDTList.prototype.asArray = function(){
+    var array = [];
+    this.root.visit(function(key, value, disambiguator){
+        array.push({
+            key:key,
+            value:value,
+            disambiguator:disambiguator
+        });
+    });
+    return array;
+};
+
 /**
  * inserts into the list, returning a {key:key, disambiguator:disambiguator} object
  * disambiguator should be unique for each connected client (e.g. username, although a random string is very likely to work)
@@ -169,16 +200,7 @@ CRDTList.prototype.rebalance = function(cb) {
     this._set_lock(true);
     //now locked, other users cannot insert
 
-    var elements   = [];
-    var keys       = [];
-    this.root.visit(function(key, value, disambiguator){
-        keys.push(key);
-        elements.push({
-            key:key,
-            value:value,
-            disambiguator:disambiguator
-        });
-    });
+    var elements  = this.asArray();
 
     //elements.length is the number of items we are distributing
     //calculate the required key depth to hold all these elements
@@ -249,8 +271,7 @@ ListNode.prototype.index_to_key = function(index, tree_depth) {
 };
 
 ListNode.prototype.insert = function(key, disambiguator, value) {
-    console.log("insert: ", key, disambiguator, value);
-
+    //console.log("insert: ", key, disambiguator, value);
     this._insert_recursive(0, key, disambiguator, value)
 
 };
@@ -271,8 +292,7 @@ ListNode.prototype._insert_recursive = function(level, key, disambiguator, value
 };
 
 ListNode.prototype.remove = function(key, disambiguator) {
-    console.log("remove: ", key, disambiguator);
-
+    //console.log("remove: ", key, disambiguator);
     this._remove_recursive(0, key, disambiguator)
 
 };

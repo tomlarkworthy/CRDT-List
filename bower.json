@@ -4,7 +4,8 @@
   "dependencies": {
     "bootstrap": "~3.0.3",
     "jquery": "~1.11.0",
-    "firebase": "~1.0.15"
+    "firebase": "~1.0.15",
+    "caret.js": "~0.0.9"
   },
   "devDependencies": {}
 }

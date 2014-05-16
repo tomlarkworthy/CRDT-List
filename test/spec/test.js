@@ -23,7 +23,7 @@ function shuffle(array) {
 
 (function () {
     'use strict';
-    /*
+
     describe('Key ordering tests --', function () {
         this.timeout(10000);
         var list = new CRDTList(null);
@@ -207,7 +207,7 @@ function shuffle(array) {
                 });
             });
         });
-    });*/
+    });
 
     describe('Balance --', function () {
         this.timeout(10000);
@@ -259,6 +259,8 @@ function shuffle(array) {
 
 
         it("rebalance", function(done){
+            console.log("rebalancing after inserting consequtive elements");
+
             var ref = new Firebase('https://crdtlist.firebaseIO.com/locked_list');
 
             var list = new CRDTList(ref);
@@ -269,6 +271,31 @@ function shuffle(array) {
             }
 
             list.rebalance(done);
+        });
+    });
+
+    describe('Multiuser --', function () { //Hmmm, we can't really test multi user situations as the operations go through synchronously :s
+        it("rebalance congestion", function(done){
+            console.log("rebalancing whilst another user inserts");
+
+            var ref1 = new Firebase('https://crdtlist.firebaseIO.com/locked_list', new Firebase.Context());
+            var list1 = new CRDTList(ref1);
+            var ref2 = new Firebase('https://crdtlist.firebaseIO.com/locked_list', new Firebase.Context());
+            var list2 = new CRDTList(ref2);
+
+            var last_key = null;
+            for(var i=0; i < 75; i++){
+                last_key = list1.insertBetween(last_key, null, i, "test").key;
+            }
+            console.log("rebalancing");
+            list1.rebalance();
+
+            console.log("inserting");
+            list2.insertBetween(last_key, null, i, "test", function(err){
+                console.log(err);
+                done();
+            });
+
         });
     });
 
