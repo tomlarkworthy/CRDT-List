@@ -23,7 +23,7 @@ function shuffle(array) {
 
 (function () {
     'use strict';
-
+    /*
     describe('Key ordering tests --', function () {
         this.timeout(10000);
         var list = new CRDTList(null);
@@ -134,7 +134,6 @@ function shuffle(array) {
             list.visit(function(key, value, disambiguator){
                 if(last_key != null){
                     assert.equal(list._compare(last_key, key), -1);
-                    //assert.equal(list._compare(last_value, value), -1);
                 }
 
                 last_key = key;
@@ -207,11 +206,11 @@ function shuffle(array) {
                 });
             });
         });
-    });
+    });*/
 
     describe('Balance --', function () {
         this.timeout(10000);
-
+        /*
         it("combinations", function(){
             var ref = new Firebase('https://crdtlist.firebaseIO.com/locked_list');
 
@@ -255,11 +254,11 @@ function shuffle(array) {
                     }
                 }
             }
-        });
+        });*/
 
 
-        it("rebalance", function(done){
-            console.log("rebalancing after inserting consequtive elements");
+        it("rebalance ordering preserved", function(done){
+            console.log("rebalancing after inserting consecutive elements");
 
             var ref = new Firebase('https://crdtlist.firebaseIO.com/locked_list');
 
@@ -270,10 +269,64 @@ function shuffle(array) {
                 last_key = list.insertBetween(last_key, null, i, "test").key;
             }
 
-            list.rebalance(done);
+            //cache values
+            var elements_values_pre_rebalance = list.asArray().map(function(e){return e.value;});
+
+            list.rebalance();
+
+            var elements_values_post_rebalance = list.asArray().map(function(e){return e.value;});
+
+            assert.deepEqual(elements_values_pre_rebalance, elements_values_post_rebalance);
+
+            done();
+        });
+
+        it("rebalance ordering preserved case 1", function(done){
+
+            var ref = new Firebase('https://crdtlist.firebaseIO.com/locked_list', new Firebase.Context());
+            var list = new CRDTList(ref);
+
+            list.insertByKey("a", "Z", "test");
+            list.insertByKey("b", "a", "test");
+
+            //cache values
+            var elements_values_pre_rebalance = list.asArray().map(function(e){return e.value;});
+
+            list.rebalance();
+
+            var elements_values_post_rebalance = list.asArray().map(function(e){return e.value;});
+
+            assert.deepEqual(elements_values_pre_rebalance, elements_values_post_rebalance);
+
+
+            setTimeout(done, 2000);
+        });
+
+        it("rebalance async", function(done){
+
+            var ref = new Firebase('https://crdtlist.firebaseIO.com/locked_list', new Firebase.Context());
+
+            ref.set({}, function(){
+                console.log("wait");
+                var list = new CRDTList(ref);
+
+                list.insertByKey("a", "Z", "test");
+                list.insertByKey("b", "a", "test");
+
+                //cache values
+                var elements_values_pre_rebalance = list.asArray().map(function(e){return e.value;});
+
+                list.rebalance(function(err){
+                    var elements_values_post_rebalance = list.asArray().map(function(e){return e.value;});
+
+                    assert.deepEqual(elements_values_pre_rebalance, elements_values_post_rebalance);
+                    done()
+                });
+            })
+
         });
     });
-
+    /*
     describe('Multiuser --', function () { //Hmmm, we can't really test multi user situations as the operations go through synchronously :s
         it("rebalance congestion", function(done){
             console.log("rebalancing whilst another user inserts");
@@ -297,6 +350,6 @@ function shuffle(array) {
             });
 
         });
-    });
+    });*/
 
 })();

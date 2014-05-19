@@ -108,20 +108,19 @@ CRDTList.prototype._disambiguator_added = function(snapshot){
 };
 
 CRDTList.prototype._treepath_added = function(snapshot){
-    //console.log("_treepath_added", snapshot.name());
-    this.root.insert(snapshot.name(), snapshot.ref().parent().name(), snapshot.val())
+    this.root.insert(snapshot.ref(), snapshot.name(), snapshot.ref().parent().name(), snapshot.val());
     this._fire('change', this);
 };
 CRDTList.prototype._treepath_removed = function(snapshot){
     //console.log("_treepath_removed", snapshot.name());
 
-    this.root.remove(snapshot.name(), snapshot.ref().parent().name())
+    this.root.remove(snapshot.name(), snapshot.ref().parent().name());
     this._fire('change', this);
 };
 CRDTList.prototype._lock_change = function(snapshot){
     this.lock = snapshot.val() === null?false:snapshot.val();
 
-    console.log("_lock_change", this.lock);
+    console.log("_lock_change to ", this.lock);
 };
 
 CRDTList.prototype._set_lock = function(value, cb){
@@ -210,6 +209,7 @@ CRDTList.prototype.rebalance = function(cb) {
 
     var combinations = this.root.key_combinations(depth);
 
+
     //now evenly distribute keys of the required depth through the space of keys of that depth
     var newList = {};
     for(var element_id=0 ; element_id < elements.length; element_id++){
@@ -222,9 +222,8 @@ CRDTList.prototype.rebalance = function(cb) {
         newList[element.disambiguator][newKey] = element.value;
     }
 
-    //clear the local cache
-    this.root = new ListNode();
-    //write the new values (clearing lock in process)
+    //write the new values (clearing lock in process and updating cache)
+    console.log(newList);
     this.ref.set(newList, cb);
 };
 
@@ -270,24 +269,40 @@ ListNode.prototype.index_to_key = function(index, tree_depth) {
     return key;
 };
 
-ListNode.prototype.insert = function(key, disambiguator, value) {
-    //console.log("insert: ", key, disambiguator, value);
-    this._insert_recursive(0, key, disambiguator, value)
+ListNode.prototype.insert = function(ref, key, disambiguator, value) {
+    //console.log("insert: ", ref, key, disambiguator, value);
+    this._insert_recursive(ref, 0, key, disambiguator, value)
 
 };
 
-ListNode.prototype._insert_recursive = function(level, key, disambiguator, value) {
+ListNode.prototype._insert_recursive = function(ref, level, key, disambiguator, value) {
+    //console.log("_insert_recursive: ", ref, level, key, disambiguator, value);
+
     var index = this.code_to_index(key.charCodeAt(level));
 
     if(level === key.length -1){ //at correct level for insertion into tree
         if(!this.indeces[index]) this.indeces[index] = {}; //lazy create key_node object
         var key_node = this.indeces[index];
-        key_node[disambiguator] = {value:value, key:key, disambiguator:disambiguator}; //insert into tree
+        key_node[disambiguator] = {
+            ref:ref,
+            value:value,
+            key:key,
+            disambiguator:disambiguator
+        }; //insert into tree
+
+        //add listener bound to key_node context
+        key_node[disambiguator].value_listener =  ref.on("value", function(snapshot){
+            //console.log("value change from, to ", this.value, snapshot.val() );
+            this.value = snapshot.val();
+
+        }, key_node[disambiguator]);
+
+        //console.log("key_node", JSON.stringify(key_node));
     }else{ //at a higher level for insertion into tree, so recurse to a child
         if(!this.children[index]) this.children[index] = new ListNode(); //lazy create child node
 
         var child_node = this.children[index];
-        child_node._insert_recursive(level + 1, key, disambiguator, value)
+        child_node._insert_recursive(ref, level + 1, key, disambiguator, value)
     }
 };
 
@@ -298,6 +313,8 @@ ListNode.prototype.remove = function(key, disambiguator) {
 };
 
 ListNode.prototype._remove_recursive = function(level, key, disambiguator) {
+    //console.log("_remove_recursive: ", level, key, disambiguator);
+
     var index = this.code_to_index(key.charCodeAt(level));
 
     if(level === key.length -1){ //at correct level for insertion into tree

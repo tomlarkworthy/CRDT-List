@@ -9,13 +9,18 @@ list1.on('change', function(){
     $('#textarea1').val(text1);
 });
 
+
 list2.on('change', function(){
     text2 = list2.asArray().map(function(element){return element.value}).join("");
     $('#textarea2').val(text2);
 });
 
 $("#rebalance").on('click', function(){
+    console.log("pre  rebalance", list1.asArray().map(function(e){return e.value;}));
+    console.log("pre  rebalance", list1.asArray().map(function(e){return e.key;}));
     list1.rebalance();
+    console.log("post rebalance", list1.asArray().map(function(e){return e.value;}));
+    console.log("post rebalance", list1.asArray().map(function(e){return e.key;}));
 });
 
 $("#textarea1").on("change keyup paste", function() {
@@ -69,6 +74,9 @@ $("#textarea1").on("change keyup paste", function() {
             index += change.value.length;
         }
     }
+
+    console.log("post edit", list1.asArray().map(function(e){return e.value;}));
+    console.log("post edit", list1.asArray().map(function(e){return e.key;}));
 
 
 });
