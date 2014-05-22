@@ -74,7 +74,7 @@ CRDTList.prototype._before = function(a) {
  */
 CRDTList.prototype._after = function(a) {
     if(a[a.length-1] == "y"){ //last possible key
-        return a.substring(0, a.length-1) + "za";
+        return a.substring(0, a.length-1) + "zA";
     }
     if(a[a.length-1] == "Z"){ //gap in ASCII table
         return a.substring(0, a.length-1) + "a";
